@@ -48,15 +48,12 @@ func (wc *WidthChecker) Test(c int64) (int16, error) {
 }
 
 func test(wc *WidthChecker, c int64, typeStr string, out io.Writer) error {
-	if typeStr == "N" {
-		return nil
-	}
 	width, err := wc.Test(c)
 	if err != nil {
 		return err
 	}
 	switch typeStr {
-	case "Na":
+	case "Na", "N":
 		if width == 1 {
 			return nil
 		}
