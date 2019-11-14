@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 
 	"golang.org/x/sys/windows"
 )
@@ -81,18 +82,18 @@ func tryUrl(wc *WidthChecker, url string, out io.Writer) error {
 			continue
 		}
 		field := strings.Fields(text)
-		field1 := strings.Split(field[0], ";")
-		if len(field1) < 2 {
+		pair := strings.Split(field[0], ";")
+		if len(pair) < 2 {
 			continue
 		}
-		ranges := strings.Split(field1[0], "..")
+		ranges := strings.Split(pair[0], "..")
 		if len(ranges) >= 2 {
 			start, err := strconv.ParseInt(ranges[0], 16, 64)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
 				continue
 			}
-			if start >= 0xFFFF {
+			if utf16.IsSurrogate(rune(start)) || start >= 0xFFFF {
 				continue
 			}
 			end, err := strconv.ParseInt(ranges[1], 16, 64)
@@ -101,7 +102,7 @@ func tryUrl(wc *WidthChecker, url string, out io.Writer) error {
 				continue
 			}
 			for i := start; i <= end; i++ {
-				err := test(wc, i, field1[1], out)
+				err := test(wc, i, pair[1], out)
 				if err != nil {
 					return err
 				}
@@ -112,7 +113,10 @@ func tryUrl(wc *WidthChecker, url string, out io.Writer) error {
 				fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
 				continue
 			}
-			err = test(wc, mid, field1[1], out)
+			if utf16.IsSurrogate(rune(mid)) || mid >= 0xFFFF {
+				continue
+			}
+			err = test(wc, mid, pair[1], out)
 			if err != nil {
 				return err
 			}
