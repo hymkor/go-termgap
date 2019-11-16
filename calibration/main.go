@@ -1,21 +1,17 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
-	"strconv"
-	"strings"
-	"unicode/utf16"
 
 	"golang.org/x/sys/windows"
 
 	"github.com/zetamatta/go-termgap"
 )
+
+//go:generate go run generate.go
 
 type WidthChecker struct {
 	handle windows.Handle
@@ -50,119 +46,8 @@ func (wc *WidthChecker) Test(c rune) (int, error) {
 	return width, nil
 }
 
-func parseEastAsianWidthTxt(in io.Reader, f func(start, end rune, typ string) error) error {
-	sc := bufio.NewScanner(in)
-	for sc.Scan() {
-		text := sc.Text()
-		if len(text) <= 0 || text[0] == '#' {
-			continue
-		}
-		field := strings.Fields(text)
-		pair := strings.Split(field[0], ";")
-		if len(pair) < 2 {
-			continue
-		}
-		ranges := strings.Split(pair[0], "..")
-		start, err := strconv.ParseInt(ranges[0], 16, 64)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
-			continue
-		}
-		if utf16.IsSurrogate(rune(start)) || start >= 0xFFFF {
-			continue
-		}
-		end := start
-		if len(ranges) >= 2 {
-			end, err = strconv.ParseInt(ranges[1], 16, 64)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
-				continue
-			}
-		}
-		if end <= 0x1F {
-			continue
-		}
-		if err := f(rune(start), rune(end), pair[1]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func parseEmojiDataTxt(in io.Reader, f func(start, end rune) error) error {
-	sc := bufio.NewScanner(in)
-	for sc.Scan() {
-		text := sc.Text()
-		if len(text) <= 0 || text[0] == '#' {
-			continue
-		}
-		field := strings.Fields(text)
-		ranges := strings.Split(field[0], "..")
-		start, err := strconv.ParseInt(ranges[0], 16, 64)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
-			continue
-		}
-		if utf16.IsSurrogate(rune(start)) || start >= 0xFFFF {
-			continue
-		}
-		end := start
-		if len(ranges) >= 2 {
-			end, err = strconv.ParseInt(ranges[1], 16, 64)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
-				continue
-			}
-			if end <= 0x1F {
-				continue
-			}
-		}
-		if err := f(rune(start), rune(end)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func main1() error {
 	wc, err := NewWidthChecker()
-	if err != nil {
-		return err
-	}
-	data := map[rune]int{}
-
-	resp1, err := http.Get("https://unicode.org/Public/12.1.0/ucd/EastAsianWidth.txt")
-	if err != nil {
-		return err
-	}
-	defer resp1.Body.Close()
-
-	err = parseEastAsianWidthTxt(resp1.Body, func(start, end rune, typ string) error {
-		for c := start; c <= end; c++ {
-			width, err := wc.Test(c)
-			if err != nil || width <= 0 {
-				return err
-			}
-			data[rune(c)] = width
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	resp2, err := http.Get("https://unicode.org/Public/emoji/12.1/emoji-data.txt")
-	if err != nil {
-		return err
-	}
-	defer resp2.Body.Close()
-
-	err = parseEmojiDataTxt(resp2.Body, func(start, end rune) error {
-		for c := start; c <= end; c++ {
-			data[rune(c)] = 2
-		}
-		return nil
-	})
 	if err != nil {
 		return err
 	}
@@ -170,6 +55,17 @@ func main1() error {
 	jsonPath, err := termgap.DatabasePath()
 	if err != nil {
 		return err
+	}
+
+	data := map[rune]int{}
+	for _, rng := range table {
+		for c := rng[0]; c <= rng[1]; c++ {
+			w, err := wc.Test(c)
+			if err != nil {
+				return err
+			}
+			data[c] = w
+		}
 	}
 
 	jsonData, err := json.MarshalIndent(data, "", "\t")
