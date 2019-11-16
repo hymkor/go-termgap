@@ -7,12 +7,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode/utf16"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/zetamatta/go-termgap"
 )
 
 type WidthChecker struct {
@@ -52,16 +53,6 @@ func test(wc *WidthChecker, c rune, typeStr string, out map[rune]int) error {
 	width, err := wc.Test(c)
 	if err != nil || width <= 0 {
 		return err
-	}
-	switch typeStr {
-	case "Na", "N":
-		if width == 1 {
-			return nil
-		}
-	case "W", "F", "A":
-		if width == 2 {
-			return nil
-		}
 	}
 	out[rune(c)] = width
 	return nil
@@ -137,15 +128,11 @@ func main1() error {
 	if err != nil {
 		return err
 	}
-	cacheDir, err := os.UserCacheDir()
+
+	jsonPath, err := termgap.DatabasePath()
 	if err != nil {
 		return err
 	}
-	cacheDir = filepath.Join(cacheDir, "nyaos_org")
-	if err = os.MkdirAll(cacheDir, 0777); err != nil {
-		return err
-	}
-	jsonPath := filepath.Join(cacheDir, "termgap.json")
 
 	jsonData, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
