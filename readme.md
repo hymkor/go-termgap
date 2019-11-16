@@ -7,7 +7,7 @@ cell's width sometimes differs from
 [the unicode-standard](https://unicode.org/Public/12.1.0/ucd/EastAsianWidth.txt)
 because a lot of fonts are used.
 
-*go-termgap* makes the database of cell's width of your own terminal 
+*go-termgap* makes the database of rune's width of your own terminal 
 and give the API to reffer it.
 
 Setup database
@@ -20,6 +20,8 @@ Setup database
 
 For each unicode, calibrate.exe prints it with the format `"\r%c"` 
 and reads the cursor position with GetConsoleScreenBufferInfo.
+
+<img src="./demo.gif" />
 
 The database is saved on  `%USERPROFILE%\AppData\Local\nyaos_org\termgap.json`.
 
