@@ -60,3 +60,25 @@ How to use in your code
     }
 
 <img src="./sample.png" />
+
+When termgap.json is not found, use go-runewidth
+------------------------------------------------
+
+- When termgap.json exists, `hybrid.RuneWidth` creates a `termgap.Database` instance and calls its method RuneWidth.
+- Otherwise it calls `runewidth.RuneWidth`
+
+.
+
+    // +build run
+
+    package main
+
+    import (
+        "fmt"
+        "github.com/zetamatta/go-termgap/hybrid"
+    )
+
+    func main() {
+        fmt.Printf("[A]'s width=%d\n", hybrid.RuneWidth('A'))
+        fmt.Printf("[\u2727]'s width=%d\n", hybrid.RuneWidth('\u2727'))
+    }
