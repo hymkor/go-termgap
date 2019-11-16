@@ -18,7 +18,10 @@ Setup database
     go build
     .\calibrate
 
--> The database is made as `%USERPROFILE%\AppData\Local\nyaos_org\termgap.json`.
+For each unicode, calibrate.exe prints it with the format `"\r%c"` 
+and reads the cursor position with GetConsoleScreenBufferInfo.
+
+The database is saved on  `%USERPROFILE%\AppData\Local\nyaos_org\termgap.json`.
 
 How to use in your code
 -----------------------
