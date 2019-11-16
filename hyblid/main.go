@@ -1,4 +1,4 @@
-package hyblid
+package hybrid
 
 import (
 	"github.com/mattn/go-runewidth"

@@ -1,4 +1,4 @@
-package hyblid
+package hybrid
 
 import (
 	"testing"
@@ -6,5 +6,5 @@ import (
 
 func TestRuneWidth(t *testing.T) {
 	w := RuneWidth('\u2727')
-	println("hyblid.RuneWidth=", w)
+	println("hybrid.RuneWidth=", w)
 }
