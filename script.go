@@ -4,8 +4,9 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -27,18 +28,18 @@ func NewWidthChecker() (*WidthChecker, error) {
 	return &WidthChecker{handle: handle}, nil
 }
 
-func (wc *WidthChecker) X() (int16, error) {
+func (wc *WidthChecker) X() (int, error) {
 	var buffer windows.ConsoleScreenBufferInfo
 
 	err := windows.GetConsoleScreenBufferInfo(wc.handle, &buffer)
 	if err != nil {
 		return 0, err
 	}
-	return buffer.CursorPosition.X, nil
+	return int(buffer.CursorPosition.X), nil
 }
 
-func (wc *WidthChecker) Test(c int64) (int16, error) {
-	fmt.Fprintf(os.Stderr, "\r%c", rune(c))
+func (wc *WidthChecker) Test(c rune) (int, error) {
+	fmt.Fprintf(os.Stderr, "\r%c", c)
 
 	width, err := wc.X()
 	if err != nil {
@@ -48,7 +49,7 @@ func (wc *WidthChecker) Test(c int64) (int16, error) {
 	return width, nil
 }
 
-func test(wc *WidthChecker, c int64, typeStr string, out io.Writer) error {
+func test(wc *WidthChecker, c rune, typeStr string, out map[rune]int) error {
 	width, err := wc.Test(c)
 	if err != nil {
 		return err
@@ -63,12 +64,11 @@ func test(wc *WidthChecker, c int64, typeStr string, out io.Writer) error {
 			return nil
 		}
 	}
-	fmt.Fprintf(out, "\t'\\u%04X': %d,\n", c, width)
+	out[rune(c)] = width
 	return nil
 }
 
-func tryUrl(wc *WidthChecker, url string, out io.Writer) error {
-	fmt.Fprintf(out, "\t// diff from %s\n", url)
+func tryUrl(wc *WidthChecker, url string, out map[rune]int) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -102,7 +102,7 @@ func tryUrl(wc *WidthChecker, url string, out io.Writer) error {
 				continue
 			}
 			for i := start; i <= end; i++ {
-				err := test(wc, i, pair[1], out)
+				err := test(wc, rune(i), pair[1], out)
 				if err != nil {
 					return err
 				}
@@ -116,7 +116,7 @@ func tryUrl(wc *WidthChecker, url string, out io.Writer) error {
 			if utf16.IsSurrogate(rune(mid)) || mid >= 0xFFFF {
 				continue
 			}
-			err = test(wc, mid, pair[1], out)
+			err = test(wc, rune(mid), pair[1], out)
 			if err != nil {
 				return err
 			}
@@ -130,21 +130,16 @@ func main1() error {
 	if err != nil {
 		return err
 	}
-	fd, err := os.Create("table.go")
+	data := map[rune]int{}
+	err = tryUrl(wc, "https://unicode.org/Public/12.1.0/ucd/EastAsianWidth.txt", data)
 	if err != nil {
 		return err
 	}
-	defer fd.Close()
-	fmt.Fprintln(fd, "package lunewhydos")
-	fmt.Fprintln(fd, "")
-	fmt.Fprintln(fd, "var table = map[rune]int{")
-
-	err = tryUrl(wc, "https://unicode.org/Public/12.1.0/ucd/EastAsianWidth.txt", fd)
+	jsonData, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(fd, "}")
-	return nil
+	return ioutil.WriteFile("termgap.json", jsonData, 0666)
 }
 
 func main() {
