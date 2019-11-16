@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -49,23 +50,8 @@ func (wc *WidthChecker) Test(c rune) (int, error) {
 	return width, nil
 }
 
-func test(wc *WidthChecker, c rune, typeStr string, out map[rune]int) error {
-	width, err := wc.Test(c)
-	if err != nil || width <= 0 {
-		return err
-	}
-	out[rune(c)] = width
-	return nil
-}
-
-func tryUrl(wc *WidthChecker, url string, out map[rune]int) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	sc := bufio.NewScanner(resp.Body)
+func parseEastAsianWidthTxt(in io.Reader, f func(start, end rune, typ string) error) error {
+	sc := bufio.NewScanner(in)
 	for sc.Scan() {
 		text := sc.Text()
 		if len(text) <= 0 || text[0] == '#' {
@@ -94,11 +80,8 @@ func tryUrl(wc *WidthChecker, url string, out map[rune]int) error {
 			if end <= 0x1F {
 				continue
 			}
-			for i := start; i <= end; i++ {
-				err := test(wc, rune(i), pair[1], out)
-				if err != nil {
-					return err
-				}
+			if err := f(rune(start), rune(end), pair[1]); err != nil {
+				return err
 			}
 		} else {
 			mid, err := strconv.ParseInt(ranges[0], 16, 64)
@@ -109,8 +92,7 @@ func tryUrl(wc *WidthChecker, url string, out map[rune]int) error {
 			if utf16.IsSurrogate(rune(mid)) || mid >= 0xFFFF || mid <= 0x1F {
 				continue
 			}
-			err = test(wc, rune(mid), pair[1], out)
-			if err != nil {
+			if err := f(rune(mid), rune(mid), pair[1]); err != nil {
 				return err
 			}
 		}
@@ -124,7 +106,23 @@ func main1() error {
 		return err
 	}
 	data := map[rune]int{}
-	err = tryUrl(wc, "https://unicode.org/Public/12.1.0/ucd/EastAsianWidth.txt", data)
+
+	resp, err := http.Get("https://unicode.org/Public/12.1.0/ucd/EastAsianWidth.txt")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	err = parseEastAsianWidthTxt(resp.Body, func(start, end rune, typ string) error {
+		for c := start; c <= end; c++ {
+			width, err := wc.Test(c)
+			if err != nil || width <= 0 {
+				return err
+			}
+			data[rune(c)] = width
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
