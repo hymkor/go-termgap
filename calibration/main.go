@@ -1,5 +1,3 @@
-// +build run
-
 package main
 
 import (
@@ -9,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -51,7 +50,7 @@ func (wc *WidthChecker) Test(c rune) (int, error) {
 
 func test(wc *WidthChecker, c rune, typeStr string, out map[rune]int) error {
 	width, err := wc.Test(c)
-	if err != nil {
+	if err != nil || width <= 0 {
 		return err
 	}
 	switch typeStr {
@@ -101,6 +100,9 @@ func tryUrl(wc *WidthChecker, url string, out map[rune]int) error {
 				fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
 				continue
 			}
+			if end <= 0x1F {
+				continue
+			}
 			for i := start; i <= end; i++ {
 				err := test(wc, rune(i), pair[1], out)
 				if err != nil {
@@ -113,7 +115,7 @@ func tryUrl(wc *WidthChecker, url string, out map[rune]int) error {
 				fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
 				continue
 			}
-			if utf16.IsSurrogate(rune(mid)) || mid >= 0xFFFF {
+			if utf16.IsSurrogate(rune(mid)) || mid >= 0xFFFF || mid <= 0x1F {
 				continue
 			}
 			err = test(wc, rune(mid), pair[1], out)
@@ -135,11 +137,21 @@ func main1() error {
 	if err != nil {
 		return err
 	}
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return err
+	}
+	cacheDir = filepath.Join(cacheDir, "nyaos_org")
+	if err = os.MkdirAll(cacheDir, 0777); err != nil {
+		return err
+	}
+	jsonPath := filepath.Join(cacheDir, "termgap.json")
+
 	jsonData, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile("termgap.json", jsonData, 0666)
+	return ioutil.WriteFile(jsonPath, jsonData, 0666)
 }
 
 func main() {
