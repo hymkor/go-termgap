@@ -63,16 +63,52 @@ func parseEastAsianWidthTxt(in io.Reader, f func(start, end rune, typ string) er
 			continue
 		}
 		ranges := strings.Split(pair[0], "..")
+		start, err := strconv.ParseInt(ranges[0], 16, 64)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
+			continue
+		}
+		if utf16.IsSurrogate(rune(start)) || start >= 0xFFFF {
+			continue
+		}
+		end := start
 		if len(ranges) >= 2 {
-			start, err := strconv.ParseInt(ranges[0], 16, 64)
+			end, err = strconv.ParseInt(ranges[1], 16, 64)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
 				continue
 			}
-			if utf16.IsSurrogate(rune(start)) || start >= 0xFFFF {
-				continue
-			}
-			end, err := strconv.ParseInt(ranges[1], 16, 64)
+		}
+		if end <= 0x1F {
+			continue
+		}
+		if err := f(rune(start), rune(end), pair[1]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func parseEmojiDataTxt(in io.Reader, f func(start, end rune) error) error {
+	sc := bufio.NewScanner(in)
+	for sc.Scan() {
+		text := sc.Text()
+		if len(text) <= 0 || text[0] == '#' {
+			continue
+		}
+		field := strings.Fields(text)
+		ranges := strings.Split(field[0], "..")
+		start, err := strconv.ParseInt(ranges[0], 16, 64)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
+			continue
+		}
+		if utf16.IsSurrogate(rune(start)) || start >= 0xFFFF {
+			continue
+		}
+		end := start
+		if len(ranges) >= 2 {
+			end, err = strconv.ParseInt(ranges[1], 16, 64)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
 				continue
@@ -80,21 +116,9 @@ func parseEastAsianWidthTxt(in io.Reader, f func(start, end rune, typ string) er
 			if end <= 0x1F {
 				continue
 			}
-			if err := f(rune(start), rune(end), pair[1]); err != nil {
-				return err
-			}
-		} else {
-			mid, err := strconv.ParseInt(ranges[0], 16, 64)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s:%s\n", err.Error(), text)
-				continue
-			}
-			if utf16.IsSurrogate(rune(mid)) || mid >= 0xFFFF || mid <= 0x1F {
-				continue
-			}
-			if err := f(rune(mid), rune(mid), pair[1]); err != nil {
-				return err
-			}
+		}
+		if err := f(rune(start), rune(end)); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -107,19 +131,35 @@ func main1() error {
 	}
 	data := map[rune]int{}
 
-	resp, err := http.Get("https://unicode.org/Public/12.1.0/ucd/EastAsianWidth.txt")
+	resp1, err := http.Get("https://unicode.org/Public/12.1.0/ucd/EastAsianWidth.txt")
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer resp1.Body.Close()
 
-	err = parseEastAsianWidthTxt(resp.Body, func(start, end rune, typ string) error {
+	err = parseEastAsianWidthTxt(resp1.Body, func(start, end rune, typ string) error {
 		for c := start; c <= end; c++ {
 			width, err := wc.Test(c)
 			if err != nil || width <= 0 {
 				return err
 			}
 			data[rune(c)] = width
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	resp2, err := http.Get("https://unicode.org/Public/emoji/12.1/emoji-data.txt")
+	if err != nil {
+		return err
+	}
+	defer resp2.Body.Close()
+
+	err = parseEmojiDataTxt(resp2.Body, func(start, end rune) error {
+		for c := start; c <= end; c++ {
+			data[rune(c)] = 2
 		}
 		return nil
 	})
