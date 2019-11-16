@@ -3,7 +3,7 @@ go-termgap
 
 The library [go-runewidth](https://github.com/mattn/go-runewidth) is very 
 useful, but on the Windows command prompt,
-cell's width sometimes differs from 
+rune's width sometimes differs from
 [the unicode-standard](https://unicode.org/Public/12.1.0/ucd/EastAsianWidth.txt)
 because a lot of fonts are used.
 
