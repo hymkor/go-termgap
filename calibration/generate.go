@@ -87,6 +87,20 @@ func parseEmojiDataTxt(in io.Reader, f func(start, end rune) error) error {
 	return nil
 }
 
+func shrink(uniq map[rune]struct{}, start *rune, end *rune) bool {
+	for {
+		_, ok := uniq[*start]
+		if !ok {
+			return true
+		}
+		(*start)++
+		if *start > *end {
+			return false
+		}
+	}
+
+}
+
 func main1() error {
 	fd, err := os.Create("table.go")
 	if err != nil {
@@ -102,9 +116,14 @@ func main1() error {
 	}
 	defer resp1.Body.Close()
 
+	uniq := map[rune]struct{}{}
+
 	lastStart := rune(-1)
 	lastEnd := rune(-1)
 	err = parseEastAsianWidthTxt(resp1.Body, func(start, end rune, typ string) error {
+		for i := start; i <= end; i++ {
+			uniq[i] = struct{}{}
+		}
 		if lastEnd+1 == start {
 			lastEnd = end
 			return nil
@@ -119,6 +138,9 @@ func main1() error {
 	if err != nil {
 		return err
 	}
+	if lastStart > 0 {
+		fmt.Fprintf(fd, "\t{%d, %d},\n", lastStart, lastEnd)
+	}
 
 	resp2, err := http.Get("https://unicode.org/Public/emoji/12.1/emoji-data.txt")
 	if err != nil {
@@ -131,7 +153,11 @@ func main1() error {
 			lastEnd = end
 			return nil
 		}
-		fmt.Fprintf(fd, "\t{%d, %d},\n", lastStart, lastEnd)
+		if lastStart > 0 {
+			if shrink(uniq, &lastStart, &lastEnd) {
+				fmt.Fprintf(fd, "\t{%d, %d},\n", lastStart, lastEnd)
+			}
+		}
 		lastStart = start
 		lastEnd = end
 		return nil
@@ -139,7 +165,9 @@ func main1() error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(fd, "\t{%d, %d},\n", lastStart, lastEnd)
+	if shrink(uniq, &lastStart, &lastEnd) {
+		fmt.Fprintf(fd, "\t{%d, %d},\n", lastStart, lastEnd)
+	}
 	fmt.Fprintf(fd, "}\n")
 	return nil
 }
