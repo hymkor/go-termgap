@@ -102,8 +102,18 @@ func main1() error {
 	}
 	defer resp1.Body.Close()
 
+	lastStart := rune(-1)
+	lastEnd := rune(-1)
 	err = parseEastAsianWidthTxt(resp1.Body, func(start, end rune, typ string) error {
-		fmt.Fprintf(fd, "\t{%d, %d},\n", start, end)
+		if lastEnd+1 == start {
+			lastEnd = end
+			return nil
+		}
+		if lastStart > 0 {
+			fmt.Fprintf(fd, "\t{%d, %d},\n", lastStart, lastEnd)
+		}
+		lastStart = start
+		lastEnd = end
 		return nil
 	})
 	if err != nil {
@@ -117,13 +127,19 @@ func main1() error {
 	defer resp2.Body.Close()
 
 	err = parseEmojiDataTxt(resp2.Body, func(start, end rune) error {
-		fmt.Fprintf(fd, "\t{%d, %d},\n", start, end)
+		if lastEnd+1 == start {
+			lastEnd = end
+			return nil
+		}
+		fmt.Fprintf(fd, "\t{%d, %d},\n", lastStart, lastEnd)
+		lastStart = start
+		lastEnd = end
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-
+	fmt.Fprintf(fd, "\t{%d, %d},\n", lastStart, lastEnd)
 	fmt.Fprintf(fd, "}\n")
 	return nil
 }
