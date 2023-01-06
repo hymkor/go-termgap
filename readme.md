@@ -13,8 +13,8 @@ and give the API to reffer it.
 Setup database
 --------------
 
-    go get github.com/zetamatta/go-termgap
-    cd %USERPROFILE%\go\github.com/zetamatta/go-termgap/calibrate
+    go get github.com/hymkor/go-termgap
+    cd %USERPROFILE%\go\github.com/hymkor/go-termgap/calibrate
     go build
     .\calibrate
 
@@ -37,7 +37,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/zetamatta/go-termgap"
+    "github.com/hymkor/go-termgap"
 )
 
 func main1() error {
@@ -76,7 +76,7 @@ package main
 
 import (
     "fmt"
-    "github.com/zetamatta/go-termgap/hybrid"
+    "github.com/hymkor/go-termgap/hybrid"
 )
 
 func main() {

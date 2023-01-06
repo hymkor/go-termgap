@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"github.com/zetamatta/go-termgap"
+	"github.com/hymkor/go-termgap"
 )
 
 //go:generate go run generate.go

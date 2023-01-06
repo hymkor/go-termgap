@@ -1,8 +1,8 @@
 package hybrid
 
 import (
+	"github.com/hymkor/go-termgap"
 	"github.com/mattn/go-runewidth"
-	"github.com/zetamatta/go-termgap"
 )
 
 var runeWidth func(rune) int

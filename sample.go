@@ -1,3 +1,4 @@
+//go:build run
 // +build run
 
 package main
@@ -6,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zetamatta/go-termgap"
+	"github.com/hymkor/go-termgap"
 )
 
 func main1() error {

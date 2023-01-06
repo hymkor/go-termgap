@@ -1,10 +1,11 @@
+//go:build run
 // +build run
 
 package main
 
 import (
 	"fmt"
-	"github.com/zetamatta/go-termgap/hybrid"
+	"github.com/hymkor/go-termgap/hybrid"
 )
 
 func main() {
